@@ -16,7 +16,7 @@ class RouteManager:
         
     def find_route_with_recharge(self, origin_id, destination_id, battery_limit=50):
         
-        #encontrar la ruta optima y genera error si la ruta entre origen y destino no son optimas 
+        # Encontrar la ruta optima y genera error si la ruta entre origen y destino no son optimas 
         # verifica si los vertices existen en el grafo
         origin = None
         destination = None
@@ -44,7 +44,8 @@ class RouteManager:
             
         # BFS
         queue = deque()
-        # tupla de cada elemento en la cola
+        
+        # Tupla de cada elemento en la cola
         # (current_vertex, path, remaining_battery, total_cost, recharge_stops, segments)
         queue.append((origin, [origin_id], battery_limit, 0, [], []))
         
@@ -75,7 +76,7 @@ class RouteManager:
                     }
                 continue
                 
-            # verificar si ya visitamos este nodo con mejor o igual bateria con un costo mas optimo
+            # Verificar si ya visitamos este nodo con mejor o igual bateria con un costo mas optimo
             if current_id in visited:
                 stored_battery, stored_cost = visited[current_id]
                 if stored_battery >= remaining_battery and stored_cost <= total_cost:
@@ -127,7 +128,7 @@ class RouteManager:
                         queue.append((current_vertex, new_path, new_remaining, new_total_cost, 
                                     new_recharge_stops, new_segments))
                     else:
-                        # buscar la estacion de recarga mas cercana
+                        # Buscar la estacion de recarga mas cercana
                         nearest_station = self._find_nearest_recharge_station(current_vertex, battery_limit)
                         if nearest_station:
                             station_id = str(nearest_station.element())
@@ -148,14 +149,11 @@ class RouteManager:
             
         return best_solution
         
-        
     def _find_nearest_recharge_station(self, from_vertex, battery_limit):
-        """
-        encontrar la estacion mas cercana segun la bateria actual.
+        # Encontrar la estacion mas cercana segun la bateria actual.
         
+        #vertex: vertice de la estacion de recarga mas cercana, en el caso que no se encuentre nonne
         
-        vertex: vertice de la estacion de recarga mas cercana, en el caso que no se encuentre nonne
-        """
         # BFS para encontrar la estacion mas cercana
         queue = deque()
         queue.append((from_vertex, 0))
