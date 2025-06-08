@@ -5,14 +5,6 @@ class Node:
         self.right = None
         self.height = 0  # nodo singular tiene altura 0
 
-def find_route_with_regarge(self, origin_id, desination_id, battery_limit=50):
-    """
-    Args:
-        origin_id:
-        destination_id
-        battery_limit
-    """
-    
 def height(N):
     return -1 if N is None else N.height
 
