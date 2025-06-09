@@ -63,11 +63,30 @@ def main():
     for node, visits in tracker.get_node_visits_stats():
         print(f"{node}: {visits} visitas")
 
+    # Test RouteOptimizer
+    from RouteOptimizer import RouteOptimizer
+    graph, nodes = build_sample_graph()
+    optimizer = RouteOptimizer(tracker, graph)
+
+    origin = 'A'
+    destination = 'C'
+    print(f"\nProbando optimizador de rutas de {origin} a {destination}:")
+    suggested_route = optimizer.suggest_optimized_route(origin, destination)
+    print("Ruta sugerida:", " -> ".join(suggested_route))
+
+    pattern_analysis = optimizer.analyze_route_patterns()
+    print("\nAnálisis de patrones de rutas:")
+    for node, count in pattern_analysis.items():
+        print(f"{node}: {count} visitas")
+
+    report = optimizer.get_optimization_report()
+    print("\nReporte de optimización:")
+    print(report)
 
     print("=== Enrutador de drones con recarga ===")
     
     # Grafos de ejemplos
-    graph, nodes = build_sample_graph()
+    # graph, nodes = build_sample_graph()
     
     # Administrador de rutas
     route_manager = RouteManager(graph)
@@ -99,6 +118,7 @@ def main():
     
     except ValueError as e:
         print(f"\nError: {e}")
+
 
 if __name__ == "__main__":
     main()
