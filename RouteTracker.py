@@ -1,4 +1,4 @@
-import AVL  # Se importa el módulo AVL que implementa el árbol AVL (equilibrado)
+import avl  # Se importa el módulo AVL que implementa el árbol AVL (equilibrado)
 from Hashmap import HashMap  # Se importa un HashMap personalizado
 
 class RouteTracker:
