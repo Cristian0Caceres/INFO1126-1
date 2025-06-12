@@ -1,42 +1,61 @@
-# model/graph.py
-
-class Node:
-    def __init__(self, node_id, role):
-        """
-        node_id: identificador único del nodo
-        role: 'cliente', 'almacenamiento', o 'recarga'
-        """
-        self.id = node_id
-        self.role = role
-        self.edges = {}  # {destino: peso}
-
-    def add_edge(self, destination, weight):
-        self.edges[destination] = weight
-
+from vertex import Vertex
+from edge import Edge
 
 class Graph:
-    def __init__(self):
-        self.nodes = {}  # {node_id: Node}
+    def __init__(self, directed=False):
+        self._outgoing = {}
+        self._incoming = {} if directed else self._outgoing
+        self._directed = directed
 
-    def add_node(self, node_id, role):
-        if node_id not in self.nodes:
-            self.nodes[node_id] = Node(node_id, role)
+    def is_directed(self):
+        return self._directed
 
-    def add_edge(self, from_id, to_id, weight):
-        if from_id in self.nodes and to_id in self.nodes:
-            self.nodes[from_id].add_edge(to_id, weight)
-            self.nodes[to_id].add_edge(from_id, weight)  # Asumimos grafo no dirigido
+    def insert_vertex(self, element):
+        v = Vertex(element)
+        self._outgoing[v] = {}
+        if self._directed:
+            self._incoming[v] = {}
+        return v
 
-    def get_neighbors(self, node_id):
-        if node_id in self.nodes:
-            return self.nodes[node_id].edges
-        return {}
+    def insert_edge(self, u, v, element):
+        e = Edge(u, v, element)
+        self._outgoing[u][v] = e
+        self._incoming[v][u] = e
+        return e
 
-    def get_node(self, node_id):
-        return self.nodes.get(node_id, None)
+    def remove_edge(self, u, v):
+        if u in self._outgoing and v in self._outgoing[u]:
+            del self._outgoing[u][v]
+            del self._incoming[v][u]
 
-    def all_nodes(self):
-        return self.nodes.keys()
+    def remove_vertex(self, v):
+        for u in list(self._outgoing.get(v, {})):
+            self.remove_edge(v, u)
+        for u in list(self._incoming.get(v, {})):
+            self.remove_edge(u, v)
+        self._outgoing.pop(v, None)
+        if self._directed:
+            self._incoming.pop(v, None)
 
-    def __contains__(self, node_id):
-        return node_id in self.nodes
+    def get_edge(self, u, v):
+        return self._outgoing.get(u, {}).get(v)
+
+    def vertices(self):
+        return self._outgoing.keys()
+
+    def edges(self):
+        seen = set()
+        for map in self._outgoing.values():
+            seen.update(map.values())
+        return seen
+
+    def neighbors(self, v):
+        return self._outgoing[v].keys()
+
+    def degree(self, v, outgoing=True):
+        adj = self._outgoing if outgoing else self._incoming
+        return len(adj[v])
+
+    def incident_edges(self, v, outgoing=True):
+        adj = self._outgoing if outgoing else self._incoming
+        return adj[v].values()

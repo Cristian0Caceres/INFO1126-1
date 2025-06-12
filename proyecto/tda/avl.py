@@ -1,92 +1,128 @@
-# tda/avl.py
-
-class AVLNode:
+class Node:
     def __init__(self, key):
-        self.key = key  # Ruta como string: "A → B → C"
-        self.freq = 1   # Frecuencia de aparición
+        self.key = key
         self.left = None
         self.right = None
-        self.height = 1
+        self.height = 0  # nodo singular tiene altura 0
 
+def height(N):
+    return -1 if N is None else N.height
 
-class AVLTree:
-    def __init__(self):
-        self.root = None
+def get_balance(N):
+    return 0 if N is None else height(N.left) - height(N.right)
 
-    # Función pública para insertar una ruta
-    def insert_route(self, key):
-        self.root = self._insert(self.root, key)
+def right_rotate(y):
+    x = y.left
+    T2 = x.right
 
-    # Retorna lista de rutas ordenadas (inorden)
-    def get_routes_inorder(self):
-        result = []
-        self._inorder(self.root, result)
-        return result
+    # Rotación
+    x.right = y
+    y.left = T2
 
-    # ------------------ Métodos Internos ------------------
+    # Actualizar alturas
+    y.height = max(height(y.left), height(y.right)) + 1
+    x.height = max(height(x.left), height(x.right)) + 1
 
-    def _insert(self, node, key):
-        if not node:
-            return AVLNode(key)
+    return x
 
-        if key < node.key:
-            node.left = self._insert(node.left, key)
-        elif key > node.key:
-            node.right = self._insert(node.right, key)
+def left_rotate(x):
+    y = x.right
+    T2 = y.left
+
+    # Rotación
+    y.left = x
+    x.right = T2
+
+    # Actualizar alturas
+    x.height = max(height(x.left), height(x.right)) + 1
+    y.height = max(height(y.left), height(y.right)) + 1
+
+    return y
+
+def insert(node, key):
+    if node is None:
+        return Node(key)
+
+    if key < node.key:
+        node.left = insert(node.left, key)
+    elif key > node.key:
+        node.right = insert(node.right, key)
+    else:
+        return node  # no se permiten duplicados
+
+    node.height = max(height(node.left), height(node.right)) + 1
+    balance = get_balance(node)
+
+    # Casos de desbalanceo
+    if balance > 1 and key < node.left.key:
+        return right_rotate(node)
+    if balance < -1 and key > node.right.key:
+        return left_rotate(node)
+    if balance > 1 and key > node.left.key:
+        node.left = left_rotate(node.left)
+        return right_rotate(node)
+    if balance < -1 and key < node.right.key:
+        node.right = right_rotate(node.right)
+        return left_rotate(node)
+
+    return node
+
+def min_value_node(node):
+    current = node
+    while current.left:
+        current = current.left
+    return current
+
+def delete_node(root, key):
+    if root is None:
+        return root
+
+    if key < root.key:
+        root.left = delete_node(root.left, key)
+    elif key > root.key:
+        root.right = delete_node(root.right, key)
+    else:
+        if root.left is None or root.right is None:
+            root = root.left or root.right
         else:
-            node.freq += 1
-            return node
+            temp = min_value_node(root.right)
+            root.key = temp.key
+            root.right = delete_node(root.right, temp.key)
 
-        # Actualizar altura y balancear
-        node.height = 1 + max(self._get_height(node.left), self._get_height(node.right))
-        balance = self._get_balance(node)
+    if root is None:
+        return root
 
-        # Rotaciones
-        if balance > 1 and key < node.left.key:
-            return self._rotate_right(node)
-        if balance < -1 and key > node.right.key:
-            return self._rotate_left(node)
-        if balance > 1 and key > node.left.key:
-            node.left = self._rotate_left(node.left)
-            return self._rotate_right(node)
-        if balance < -1 and key < node.right.key:
-            node.right = self._rotate_right(node.right)
-            return self._rotate_left(node)
+    root.height = max(height(root.left), height(root.right)) + 1
+    balance = get_balance(root)
 
-        return node
+    if balance > 1 and get_balance(root.left) >= 0:
+        return right_rotate(root)
+    if balance > 1 and get_balance(root.left) < 0:
+        root.left = left_rotate(root.left)
+        return right_rotate(root)
+    if balance < -1 and get_balance(root.right) <= 0:
+        return left_rotate(root)
+    if balance < -1 and get_balance(root.right) > 0:
+        root.right = right_rotate(root.right)
+        return left_rotate(root)
 
-    def _inorder(self, node, result):
-        if node:
-            self._inorder(node.left, result)
-            result.append((node.key, node.freq))
-            self._inorder(node.right, result)
+    return root
 
-    def _get_height(self, node):
-        return node.height if node else 0
+def pre_order(root):
+    if root:
+        print(f"{root.key} ", end="")
+        pre_order(root.left)
+        pre_order(root.right)
 
-    def _get_balance(self, node):
-        return self._get_height(node.left) - self._get_height(node.right) if node else 0
+# Prueba
+if __name__ == "__main__":
+    root = None
+    for key in [9, 5, 10, 0, 6, 11, -1, 1, 2]:
+        root = insert(root, key)
 
-    def _rotate_left(self, z):
-        y = z.right
-        T2 = y.left
+    print("Preorden del AVL construido:")
+    pre_order(root)
 
-        y.left = z
-        z.right = T2
-
-        z.height = 1 + max(self._get_height(z.left), self._get_height(z.right))
-        y.height = 1 + max(self._get_height(y.left), self._get_height(y.right))
-
-        return y
-
-    def _rotate_right(self, y):
-        x = y.left
-        T2 = x.right
-
-        x.right = y
-        y.left = T2
-
-        y.height = 1 + max(self._get_height(y.left), self._get_height(y.right))
-        x.height = 1 + max(self._get_height(x.left), self._get_height(x.right))
-
-        return x
+    root = delete_node(root, 10)
+    print("\nPreorden luego de eliminar 10:")
+    pre_order(root)
