@@ -1,21 +1,25 @@
+import random
 from vertex import Vertex
 from graph import Graph
 from edge import Edge
 from route_manager import RouteManager
 
-def recibir_datos_simulacion_nx(G_nx, n_orders):
+def recibir_datos_simulacion_nx(G_nx, n_orders, battery_limit=50):
     """Recibe un grafo NetworkX y realiza simulación de rutas."""
     print("=== Enrutador de drones con recarga ===")
 
     graph = Graph(directed=False)
     node_map = {}
 
+    # Insertar nodos
     for node in G_nx.nodes:
         v = graph.insert_vertex(str(node))
         node_map[node] = v
 
-    for u, v, data in G_nx.edges(data=True):
-        weight = data.get("weight", 1)  # Peso por defecto
+    # Insertar aristas con peso aleatorio entre 1 y 30
+    for u, v in G_nx.edges:
+        weight = random.randint(1, 30)
+        G_nx[u][v]["weight"] = weight  # Guarda el peso en NetworkX también
         graph.insert_edge(node_map[u], node_map[v], weight)
 
     route_manager = RouteManager(graph)
@@ -32,8 +36,6 @@ def recibir_datos_simulacion_nx(G_nx, n_orders):
     if not almacen or not cliente:
         print("Error: No se encontró almacén o cliente en el grafo.")
         return
-
-    battery_limit = 50  # Puedes hacerlo configurable si lo deseas
 
     print(f"\nRuta de {almacen} a {cliente} con batería {battery_limit}...")
 
