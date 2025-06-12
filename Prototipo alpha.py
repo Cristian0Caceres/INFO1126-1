@@ -7,10 +7,37 @@ from main import recibir_datos_simulacion_nx
 from graph import Graph
 from route_manager import RouteManager
 
-# Set font that supports emojis
+# Configuración de fuente para soportar emojis
 mpl.rcParams['font.family'] = 'Segoe UI Emoji'
 
+def draw_graph(G, pos, ax, highlight_path=None):
+    node_colors = []
+    for n in G.nodes():
+        role = G.nodes[n].get('role', '👤 Cliente')
+        if role == "📦 Almacenamiento":
+            node_colors.append("orange")
+        elif role == "🔋 Recarga":
+            node_colors.append("cyan")
+        else:
+            node_colors.append("lightgreen")
+    
+    # Dibujar todos los edges primero (tenues)
+    nx.draw_networkx_edges(G, pos, ax=ax, edge_color='lightgray', width=1, alpha=0.3)
+    
+    # Dibujar nodos
+    nx.draw_networkx_nodes(G, pos, node_color=node_colors, node_size=500, ax=ax)
+    
+    # Dibujar labels
+    nx.draw_networkx_labels(G, pos, ax=ax)
+    
+    # Resaltar ruta si existe
+    if highlight_path:
+        path_edges = list(zip(highlight_path[:-1], highlight_path[1:]))
+        nx.draw_networkx_edges(G, pos, edgelist=path_edges, edge_color='red', width=3, ax=ax)
+        nx.draw_networkx_nodes(G, pos, nodelist=highlight_path, node_color='purple', node_size=700, ax=ax)
+        
 def generar_arbol_aleatorio(n):
+    """Genera un árbol aleatorio usando el algoritmo de Prüfer."""
     if n <= 1:
         return []
     prufer = [random.randint(0, n - 1) for _ in range(n - 2)]
@@ -31,13 +58,112 @@ def generar_arbol_aleatorio(n):
     aristas.append((u, v))
     return aristas
 
-def explore_network_tab(G):
+def run_simulation_tab():
+    """Pestaña 1: Run Simulation"""
+    st.header("🔄 Run Simulation")
+    
+    # Sliders para configuración
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        n_nodes = st.slider("Number of Nodes", 10, 150, 50, key="n_nodes")
+    with col2:
+        min_edges = max(n_nodes - 1, 10)  # Mínimo para grafo conexo
+        m_edges = st.slider("Number of Edges", min_edges, 300, 100, key="m_edges")
+    with col3:
+        n_orders = st.slider("Number of Orders", 10, 300, 50, key="n_orders")
+    
+    # Información sobre distribución de nodos
+    n_storage = max(1, int(n_nodes * 0.2))  # 20% almacenamiento (mínimo 1)
+    n_recharge = max(1, int(n_nodes * 0.2))  # 20% recarga (mínimo 1)
+    n_clients = max(1, n_nodes - n_storage - n_recharge)  # 60% clientes
+    
+    st.info(
+        f"Node distribution:\n"
+        f"- 📦 Storage: {n_storage} ({n_storage/n_nodes*100:.0f}%)\n"
+        f"- 🔋 Recharge: {n_recharge} ({n_recharge/n_nodes*100:.0f}%)\n"
+        f"- 👤 Clients: {n_clients} ({n_clients/n_nodes*100:.0f}%)"
+    )
+    
+    if st.button("📊 Start Simulation"):
+        # Validación adicional
+        if m_edges < n_nodes - 1:
+            st.error("Number of edges must be at least n_nodes - 1 for a connected graph!")
+            return
+        
+        # Generar grafo aleatorio
+        aristas_iniciales = generar_arbol_aleatorio(n_nodes)
+        G = nx.Graph()
+        G.add_nodes_from(range(n_nodes))
+        G.add_edges_from(aristas_iniciales)
+        
+        # Añadir aristas adicionales hasta alcanzar m_edges
+        while G.number_of_edges() < m_edges:
+            u, v = random.sample(range(n_nodes), 2)
+            if not G.has_edge(u, v) and u != v:
+                G.add_edge(u, v, weight=random.randint(1, 20))
+        
+        # Asignar roles a los nodos
+        nodes = list(G.nodes())
+        random.shuffle(nodes)
+        
+        roles = (
+            ["📦 Almacenamiento"] * n_storage +
+            ["🔋 Recarga"] * n_recharge +
+            ["👤 Cliente"] * n_clients)
+        random.shuffle(roles)
+        
+        role_map = {node: role for node, role in zip(nodes, roles)}
+        nx.set_node_attributes(G, role_map, "role")
+        
+        # Mostrar información de la simulación
+        st.success(
+            f"Simulation started with:\n"
+            f"- Nodes: {n_nodes}\n"
+            f"- Edges: {m_edges}\n"
+            f"- Orders: {n_orders}")
+        
+        # Visualización del grafo
+        role_colors = {
+            "📦 Almacenamiento": "orange",
+            "🔋 Recarga": "cyan", 
+            "👤 Cliente": "lightgreen"}
+        node_colors = [role_colors[G.nodes[n]['role']] for n in G.nodes]
+        pos = nx.spring_layout(G, seed=42)
+        
+        fig, ax = plt.subplots(figsize=(10, 6))
+        nx.draw(G, pos, ax=ax, with_labels=True, node_color=node_colors, node_size=500)
+        
+        # Leyenda
+        for role, color in role_colors.items():
+            ax.scatter([], [], c=color, label=role)
+        ax.legend(scatterpoints=1, frameon=True, labelspacing=1, title="Node Types")
+        
+        st.pyplot(fig)
+        
+        # Guardar grafo en session_state para usar en la otra pestaña
+        st.session_state['graph'] = G
+        st.session_state['node_colors'] = node_colors
+        st.session_state['pos'] = pos
+        
+        # Ejecutar simulación de órdenes
+        recibir_datos_simulacion_nx(G, n_orders)
+
+def explore_network_tab():
+    """Pestaña 2: Explore Network"""
     st.header("🔍 Explore Network")
     
-    # Verify required node types exist
+    if 'graph' not in st.session_state:
+        st.warning("Please generate a network first using the Run Simulation tab.")
+        return
+    
+    G = st.session_state['graph']
+    node_colors = st.session_state.get('node_colors', ['lightgreen']*len(G.nodes()))
+    pos = st.session_state.get('pos', nx.spring_layout(G, seed=42))
+    
+    # Verificar que existen nodos de cada tipo
     roles = nx.get_node_attributes(G, 'role')
     if not any(r == "📦 Almacenamiento" for r in roles.values()):
-        st.error("Error: No warehouse nodes found in graph!")
+        st.error("Error: No storage nodes found in graph!")
         return
     if not any(r == "👤 Cliente" for r in roles.values()):
         st.error("Error: No client nodes found in graph!")
@@ -47,38 +173,39 @@ def explore_network_tab(G):
     
     with col1:
         st.subheader("Network Visualization")
-        pos = nx.spring_layout(G, seed=42)
+        fig, ax = plt.subplots(figsize=(10, 8))
+        
+        # Dibujar el grafo base
+        nx.draw(G, pos, ax=ax, with_labels=True, node_color=node_colors, node_size=500)
+        
+        # Leyenda
         role_colors = {
             "📦 Almacenamiento": "orange",
             "🔋 Recarga": "cyan",
-            "👤 Cliente": "lightgreen"
-        }
-        node_colors = [role_colors[G.nodes[n]['role']] for n in G.nodes]
-        
-        fig, ax = plt.subplots(figsize=(10, 8))
-        nx.draw(G, pos, ax=ax, with_labels=True, 
-                node_color=node_colors, node_size=500)
-        
+            "👤 Cliente": "lightgreen"}
         for role, color in role_colors.items():
             ax.scatter([], [], c=color, label=role)
         ax.legend(scatterpoints=1, frameon=True, labelspacing=1, title="Node Types")
+        
         st.pyplot(fig)
     
     with col2:
         st.subheader("Route Calculator")
         nodes = list(G.nodes())
-        node_labels = [f"{n} ({G.nodes[n]['role'][0]})" for n in nodes]
+        node_labels = {n: f"{n} ({G.nodes[n]['role'][0]})" for n in nodes}
         
-        origin = st.selectbox("Select Origin Node", nodes, format_func=lambda x: f"{x} ({G.nodes[x]['role'][0]})")
-        destination = st.selectbox("Select Destination Node", nodes, format_func=lambda x: f"{x} ({G.nodes[x]['role'][0]})")
+        origin = st.selectbox(
+            "Select Origin Node", nodes, format_func=lambda x: node_labels[x], key="origin")
+        destination = st.selectbox("Select Destination Node", nodes, format_func=lambda x: node_labels[x], key="destination")
         
-        battery_limit = st.slider("Battery Limit", 10, 100, 50)
+        battery_limit = st.slider("Battery Limit", 10, 100, 50, key="battery_limit")
         
         if st.button("✈ Calculate Route"):
             if origin == destination:
                 st.error("Origin and destination cannot be the same!")
             else:
                 try:
+                    # Convertir el grafo NetworkX a nuestro formato Graph
                     graph = Graph(directed=False)
                     node_map = {}
                     
@@ -90,101 +217,76 @@ def explore_network_tab(G):
                         weight = data.get("weight", 1)
                         graph.insert_edge(node_map[u], node_map[v], weight)
                     
+                    # Crear RouteManager y añadir estaciones de recarga
                     route_manager = RouteManager(graph)
                     
                     for node, data in G.nodes(data=True):
                         if data.get("role") == "🔋 Recarga":
                             route_manager.add_recharge_station(str(node))
                     
+                    # Calcular ruta
                     result = route_manager.find_route_with_recharge(
                         str(origin), str(destination), battery_limit)
                     
+                    # Validar la ruta obtenida
+                    if not result or 'path' not in result or len(result['path']) < 2:
+                        raise ValueError("No valid path found or path too short")
+                    
+                    # Mostrar resultados
                     st.success(f"**Path:** {' → '.join(result['path'])}")
                     st.success(f"**Total Cost:** {result['total_cost']}")
                     
                     if result['recharge_stops']:
                         st.info(f"**Recharge Stops:** {', '.join(result['recharge_stops'])}")
                     
-                    path_edges = [(result['path'][i], result['path'][i+1]) 
-                                for i in range(len(result['path'])-1)]
+                    # Preparar edges para visualización
+                    path_edges = []
+                    for i in range(len(result['path'])-1):
+                        u = result['path'][i]
+                        v = result['path'][i+1]
+                        if G.has_edge(u, v):
+                            path_edges.append((u, v))
+                        else:
+                            st.warning(f"Edge between {u} and {v} not found in original graph")
                     
+                    # Visualizar ruta en el grafo
                     fig, ax = plt.subplots(figsize=(10, 8))
+                    
+                    # Dibujar grafo base
                     nx.draw(G, pos, ax=ax, with_labels=True, 
                             node_color=node_colors, node_size=500)
-                    nx.draw_networkx_edges(G, pos, edgelist=path_edges, edge_color='red', width=3, ax=ax)
-                    nx.draw_networkx_nodes(G, pos, nodelist=[origin, destination], node_color=['purple', 'purple'], node_size=700, ax=ax)
+                    
+                    # Dibujar ruta resaltada solo si hay edges válidos
+                    if path_edges:
+                        nx.draw_networkx_edges(G, pos, edgelist=path_edges, edge_color='red', width=3, ax=ax)
+                        nx.draw_networkx_nodes(G, pos, nodelist=result['path'], node_color='purple', node_size=700, ax=ax)
+                    
+                    # Dibujar origen y destino especial
+                    nx.draw_networkx_nodes(G, pos, nodelist=[origin, destination], node_color=['blue', 'green'], node_size=700, ax=ax)
+                    
                     ax.legend(scatterpoints=1, frameon=True, labelspacing=1, title="Node Types")
                     st.pyplot(fig)
                     
+                    # Opción para completar la entrega
                     if st.button("✅ Complete Delivery and Create Order"):
                         st.success("Order created successfully!")
                 
                 except ValueError as e:
-                    st.error(f"Error: {e}")
+                    st.error(f"Error calculating route: {str(e)}")
+                except Exception as e:
+                    st.error(f"Unexpected error: {str(e)}")
 
 def main():
-    st.set_page_config(page_title="Simulación de Rutas", layout="wide")
-    st.title("🔄 Simulador de Rutas con Estaciones de Recarga")
+    st.set_page_config(page_title="Drone Route Simulator", layout="wide")
+    st.title("🚁 Drone Route Simulator with Recharge Stations")
     
-    tab1, tab2 = st.tabs(["Simulation", "Explore Network"])
+    tab1, tab2 = st.tabs(["Run Simulation", "Explore Network"])
     
     with tab1:
-        n_nodes = st.slider("Número de Nodos", 10, 150, 50)
-        m_edges = st.slider("Número de Aristas", n_nodes - 1, 300, 100)
-        n_orders = st.slider("Número de Órdenes", 10, 300, 50)
-        
-        if st.button("📊 Iniciar Simulación"):
-            aristas_iniciales = generar_arbol_aleatorio(n_nodes)
-            G = nx.Graph()
-            G.add_nodes_from(range(n_nodes))
-            G.add_edges_from(aristas_iniciales)
-            
-            while G.number_of_edges() < m_edges:
-                u, v = random.sample(range(n_nodes), 2)
-                if not G.has_edge(u, v) and u != v:
-                    G.add_edge(u, v, weight=random.randint(1, 20))
-            
-            nodes = list(G.nodes())
-            random.shuffle(nodes)
-            
-            # Ensure at least 1 of each type
-            n_storage = max(1, int(n_nodes * 0.2))
-            n_recharge = max(1, int(n_nodes * 0.2))
-            n_clients = max(1, n_nodes - n_storage - n_recharge)
-            
-            roles = (
-                ["📦 Almacenamiento"] * n_storage +
-                ["🔋 Recarga"] * n_recharge +
-                ["👤 Cliente"] * n_clients
-            )
-            random.shuffle(roles)
-            
-            role_map = {node: role for node, role in zip(nodes, roles)}
-            nx.set_node_attributes(G, role_map, "role")
-            
-            st.success(f"Nodos: {n_nodes} → Clientes: {n_clients}, Almacenamiento: {n_storage}, Recarga: {n_recharge}")
-            
-            role_colors = {
-                "📦 Almacenamiento": "orange",
-                "🔋 Recarga": "cyan", 
-                "👤 Cliente": "lightgreen"
-            }
-            node_colors = [role_colors[G.nodes[n]['role']] for n in G.nodes]
-            pos = nx.spring_layout(G, seed=42)
-            
-            plt.figure(figsize=(10, 6))
-            nx.draw(G, pos, with_labels=True, node_color=node_colors, node_size=500)
-            nx.draw_networkx_labels(G, pos, labels={n: G.nodes[n]['role'][0] for n in G.nodes}, font_color='black')
-            st.pyplot(plt)
-            
-            st.session_state['graph'] = G
-            recibir_datos_simulacion_nx(G, n_orders)
+        run_simulation_tab()
     
     with tab2:
-        if 'graph' in st.session_state:
-            explore_network_tab(st.session_state['graph'])
-        else:
-            st.warning("Please generate a network first using the Simulation tab.")
+        explore_network_tab()
 
 if __name__ == "__main__":
     main()

@@ -15,6 +15,13 @@ class RouteManager:
         self.recharge_stations.add(vertex_id)
         
     def find_route_with_recharge(self, origin_id, destination_id, battery_limit=50):
+    # Añadir esta validación inicial
+        if battery_limit <= 0:
+            raise ValueError("Battery limit must be positive")
+        
+        # Modifica la búsqueda para priorizar estaciones de recarga
+        # cuando la batería sea < 20% del límite
+        warning_threshold = 0.2 * battery_limit
         
         # Encontrar la ruta optima y genera error si la ruta entre origen y destino no son optimas 
         # verifica si los vertices existen en el grafo
