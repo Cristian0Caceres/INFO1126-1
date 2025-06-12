@@ -155,6 +155,41 @@ class RouteManager:
             raise ValueError("No se encontro una ruta correcta entre los vertices")
             
         return best_solution
+    
+    def bfs_with_recharge(graph, start, goal, recharge_stations, battery_limit):
+        from collections import deque
+
+        queue = deque()
+        queue.append((start, [start], 0, battery_limit))  # (node, path, cost, battery)
+
+        visited = set()
+
+        while queue:
+            current, path, cost, battery = queue.popleft()
+
+            if current == goal:
+                return {"path": path, "total_cost": cost, "recharge_stops": [n for n in path if n in recharge_stations]}
+
+            if (current, battery) in visited:
+                continue
+            visited.add((current, battery))
+
+            for edge in graph.incident_edges(graph.get_vertex(current)):
+                neighbor = edge.opposite(graph.get_vertex(current))
+                neighbor_id = str(neighbor.element())
+                weight = edge.element()
+
+                if weight > battery:
+                    continue  # No hay suficiente batería para este tramo
+
+                new_battery = battery - weight
+                if neighbor_id in recharge_stations:
+                    new_battery = battery_limit  # recarga
+
+                queue.append((neighbor_id, path + [neighbor_id], cost + weight, new_battery))
+
+        return None
+
         
     def _find_nearest_recharge_station(self, from_vertex, battery_limit):
         # Encontrar la estacion mas cercana segun la bateria actual.
