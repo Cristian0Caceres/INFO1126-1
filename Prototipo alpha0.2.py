@@ -3,12 +3,25 @@ import networkx as nx
 import random
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import itertools
+import string
 from main import recibir_datos_simulacion_nx
 from graph import Graph
 from route_manager import RouteManager
 
 # Configuración de fuente para soportar emojis
 mpl.rcParams['font.family'] = 'Segoe UI Emoji'
+
+# Generar nombres de nodos con combinaciones de hasta 3 letras (A-Z, AA-ZZ, AAA-ZZZ)
+def generar_nombres_nodos(n):
+    letras = string.ascii_uppercase
+    nombres = []
+    for size in range(1, 4):  # Tamaños de 1 a 3 letras
+        for comb in itertools.product(letras, repeat=size):
+            nombres.append(''.join(comb))
+            if len(nombres) == n:
+                return nombres
+    return nombres[:n]
 
 def draw_graph(G, pos, ax, highlight_path=None):
     node_colors = []
@@ -29,7 +42,7 @@ def draw_graph(G, pos, ax, highlight_path=None):
         path_edges = list(zip(highlight_path[:-1], highlight_path[1:]))
         nx.draw_networkx_edges(G, pos, edgelist=path_edges, edge_color='red', width=3, ax=ax)
         nx.draw_networkx_nodes(G, pos, nodelist=highlight_path, node_color='purple', node_size=700, ax=ax)
-        
+
 def generar_arbol_aleatorio(n):
     if n <= 1:
         return []
@@ -54,6 +67,13 @@ def generar_arbol_aleatorio(n):
 def run_simulation_tab():
     st.header("🔄 Run Simulation")
     
+    st.markdown("""
+    ### 🧩 Node Role Distribution (Fixed Percentages)
+    - 📦 **Storage**: 20%  
+    - 🔋 **Recharge Stations**: 20%  
+    - 👤 **Clients**: 60%
+    """)
+
     col1, col2, col3 = st.columns(3)
     with col1:
         n_nodes = st.slider("Number of Nodes", 10, 150, 50, key="n_nodes")
@@ -63,9 +83,10 @@ def run_simulation_tab():
     with col3:
         n_orders = st.slider("Number of Orders", 10, 300, 50, key="n_orders")
     
-    n_storage = max(1, int(n_nodes * 0.2))
-    n_recharge = max(1, int(n_nodes * 0.2))
-    n_clients = max(1, n_nodes - n_storage - n_recharge)
+    # Distribución fija
+    n_storage = int(n_nodes * 0.2)
+    n_recharge = int(n_nodes * 0.2)
+    n_clients = n_nodes - n_storage - n_recharge
     
     st.info(
         f"Node distribution:\n"
@@ -89,9 +110,9 @@ def run_simulation_tab():
             if not G.has_edge(u, v) and u != v:
                 G.add_edge(u, v, weight=random.randint(1, 20))
         
-        # Asignar letras a nodos: A, B, C...
-        letras = [chr(ord('A') + i) for i in range(n_nodes)]
-        mapping = dict(zip(G.nodes(), letras))
+        # Asignar nombres con hasta 3 letras
+        nombres_nodos = generar_nombres_nodos(n_nodes)
+        mapping = dict(zip(G.nodes(), nombres_nodos))
         G = nx.relabel_nodes(G, mapping)
         
         nodes = list(G.nodes())
@@ -136,7 +157,14 @@ def run_simulation_tab():
 
 def explore_network_tab():
     st.header("🔍 Explore Network")
-    
+
+    st.markdown("""
+    ### 🧩 Node Role Distribution (Fixed Percentages)
+    - 📦 **Storage**: 20%  
+    - 🔋 **Recharge Stations**: 20%  
+    - 👤 **Clients**: 60%
+    """)
+
     if 'graph' not in st.session_state:
         st.warning("Please generate a network first using the Run Simulation tab.")
         return
@@ -186,7 +214,6 @@ def explore_network_tab():
             if origin == destination:
                 st.error("Origin and destination cannot be the same!")
             else:
-                # Convertir grafo NetworkX a Graph (custom)
                 graph = Graph(directed=False)
                 node_map = {}
                 

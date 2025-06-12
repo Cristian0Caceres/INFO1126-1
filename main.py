@@ -18,7 +18,7 @@ def recibir_datos_simulacion_nx(G_nx, n_orders, battery_limit=50):
 
     # Insertar aristas con peso aleatorio entre 1 y 30
     for u, v in G_nx.edges:
-        weight = random.randint(1, 30)
+        weight = random.randint(1, 20)
         G_nx[u][v]["weight"] = weight  # Guarda el peso en NetworkX también
         graph.insert_edge(node_map[u], node_map[v], weight)
 
