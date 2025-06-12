@@ -5,6 +5,10 @@ class RouteOptimizer:
         self.optimization_report = []
 
     def suggest_optimized_route(self, origin_id, destination_id):
+    # cache para rutas frecuentes
+        cache_key = f"{origin_id}->{destination_id}"
+        if hasattr(self, '_route_cache') and cache_key in self._route_cache:
+            return self._route_cache[cache_key]
         """
         Sugiere ruta basada en patrones historicos
 
