@@ -236,17 +236,18 @@ def explore_network_tab():
             tooltip=tooltip
         ).add_to(fmap)
 
-    # Agregar nodos con iconos según rol
+    # Agregar nodos con iconos según rol usando emojis
     for node in G.nodes():
         data = G.nodes[node]
         coord = data.get("coord", (-38.735, -72.607))
         role = data.get("role", "👤 Cliente")
-        color = ROLE_COLORS.get(role, "gray")
-
+        emoji_icon = role[0]  # Primer carácter (emoji)
         folium.Marker(
             location=coord,
             popup=f"{node} - {role}",
-            icon=folium.Icon(color=color, icon="info-sign")
+            icon=folium.DivIcon(html=f"""
+                <div style="font-size: 24px; text-align: center; line-height: 24px;">{emoji_icon}</div>
+            """)
         ).add_to(fmap)
 
     # Si hay ruta calculada, destacarla
@@ -308,6 +309,49 @@ def explore_network_tab():
                     avl.insert_route(route_key)
 
             st.success("Delivery registered!")
+
+        # Botón para visualizar el dron moviéndose
+        import time
+        if st.button("🚁 Visualize Drone Moving"):
+            for i, coord in enumerate(path_coords):
+                fmap = folium.Map(location=coord, zoom_start=14)
+
+                # Redibujar aristas
+                for u, v, data in G.edges(data=True):
+                    coord_u = G.nodes[u]['coord']
+                    coord_v = G.nodes[v]['coord']
+                    folium.PolyLine(
+                        [coord_u, coord_v],
+                        color="gray",
+                        weight=2,
+                        opacity=0.6
+                    ).add_to(fmap)
+
+                # Redibujar nodos con emojis
+                for node in G.nodes():
+                    data = G.nodes[node]
+                    node_coord = data['coord']
+                    role = data['role']
+                    emoji_icon = role[0]
+                    folium.Marker(
+                        location=node_coord,
+                        popup=f"{node} - {role}",
+                        icon=folium.DivIcon(html=f"""
+                            <div style="font-size: 24px; text-align: center; line-height: 24px;">{emoji_icon}</div>
+                        """)
+                    ).add_to(fmap)
+
+                # Marcar posición actual del dron
+                folium.Marker(
+                    location=coord,
+                    popup=f"🚁 Dron ({i+1}/{len(path_coords)})",
+                    icon=folium.DivIcon(html="""
+                        <div style="font-size:24px; color:red;">🚁</div>
+                    """)
+                ).add_to(fmap)
+
+                st_folium(fmap, width=1000, height=600)
+                time.sleep(0.5)
 
     # Mostrar el mapa con todo
     st.subheader("📍 Network Map")
