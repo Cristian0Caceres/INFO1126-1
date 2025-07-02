@@ -1,5 +1,6 @@
-from vertex import Vertex
-from edge import Edge
+from model.vertex import Vertex
+from model.edge import Edge
+
 class Graph:
     def __init__(self, directed=False):
         self._outgoing = {}

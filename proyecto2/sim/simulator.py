@@ -136,6 +136,37 @@ class OrderSimulator:
                 'estado': 'Entregado'
             }
             self.estadisticas.append(resultado)
+            
+    def generate_random_graph(n_nodes, m_edges):
+            graph = Graph()
+            nodes = [graph.insert_vertex(f"Node_{i}") for i in range(n_nodes)]
+            
+            # Asegurar conectividad mínima
+            for i in range(1, n_nodes):
+                weight = random.randint(1, 30)
+                graph.insert_edge(nodes[i-1], nodes[i], weight)
+            
+            # Añadir aristas restantes aleatorias
+            for _ in range(m_edges - n_nodes + 1):
+                u, v = random.sample(nodes, 2)
+                weight = random.randint(1, 30)
+                graph.insert_edge(u, v, weight)
+            
+            return graph
+    def assign_node_types(graph, storage_pct=0.2, recharge_pct=0.2):
+            nodes = list(graph.vertices())
+            random.shuffle(nodes)
+            
+            n_storage = int(len(nodes) * storage_pct)
+            n_recharge = int(len(nodes) * recharge_pct)
+            
+            for i, node in enumerate(nodes):
+                if i < n_storage:
+                    node.type = "storage"
+                elif i < n_storage + n_recharge:
+                    node.type = "recharge"
+                else:
+                    node.type = "client"
 
             #Informe
             print(f"---OrdeN--- #{i} de {origen_nom} a {destino_nom}")
