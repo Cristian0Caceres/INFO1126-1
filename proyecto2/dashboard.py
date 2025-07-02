@@ -75,30 +75,53 @@ def generar_coordenadas_temporalmente_validas(n):
     return puntos
 
 def crear_grafo_con_roles(n_nodes, m_edges):
-    aristas = generar_arbol_aleatorio(n_nodes)
+    import itertools
+    import random
+    import networkx as nx
+
+    # Crear grafo completo con pesos aleatorios entre nodos
+    G_full = nx.Graph()
+    G_full.add_nodes_from(range(n_nodes))
+    for u, v in itertools.combinations(range(n_nodes), 2):
+        G_full.add_edge(u, v, weight=random.randint(1, 20))
+
+    # Obtener MST usando Kruskal (networkx usa Kruskal por defecto)
+    mst = nx.minimum_spanning_tree(G_full, algorithm='kruskal')
+
+    # Crear grafo G inicial con MST
     G = nx.Graph()
     G.add_nodes_from(range(n_nodes))
-    G.add_edges_from(aristas)
-    while G.number_of_edges() < m_edges:
-        u, v = random.sample(range(n_nodes), 2)
-        if u != v and not G.has_edge(u, v):
-            G.add_edge(u, v, weight=random.randint(1, 20))
+    for u, v, data in mst.edges(data=True):
+        G.add_edge(u, v, weight=data['weight'])
 
+    # Agregar aristas adicionales para alcanzar m_edges
+    posibles_aristas = set(G_full.edges()) - set(G.edges())
+    while G.number_of_edges() < m_edges and posibles_aristas:
+        arista = random.choice(list(posibles_aristas))
+        u, v = arista
+        peso = G_full[u][v]['weight']
+        G.add_edge(u, v, weight=peso)
+        posibles_aristas.remove(arista)
+
+    # Renombrar nodos con nombres tipo A, B, C, ...
     nombres = generar_nombres_nodos(n_nodes)
     G = nx.relabel_nodes(G, dict(zip(G.nodes(), nombres)))
 
+    # Asignar roles según distribución
     roles, nodes = [], list(G.nodes())
     for role, perc in ROLE_DISTRIBUTION.items():
         roles += [role] * int(n_nodes * perc)
     roles += ["👤 Cliente"] * (n_nodes - len(roles))
     random.shuffle(roles)
 
+    # Asignar coordenadas geográficas
     coords = generar_coordenadas_temporalmente_validas(n_nodes)
     for node, role, coord in zip(G.nodes(), roles, coords):
         G.nodes[node]["role"] = role
         G.nodes[node]["coord"] = coord
 
     return G
+
 
 def mostrar_mapa_grafo_folium(G):
     fmap = folium.Map(location=[-38.735, -72.607], zoom_start=14)
